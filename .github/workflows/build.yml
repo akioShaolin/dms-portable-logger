@@ -1,0 +1,13 @@
+name: build
+on: [push, pull_request]
+jobs:
+  firmware:
+    runs-on: ubuntu-latest
+    strategy: { matrix: { project: [masterlogger, slavelogger] } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: pip install platformio
+      - run: pio run -d ${{ matrix.project }}
+      - run: pio test -d ${{ matrix.project }} -e native

@@ -1,0 +1,8 @@
+.pio/
+.vscode/
+__pycache__/
+*.pyc
+secrets.h
+*.dmslog
+*.csv
+

@@ -1,0 +1,10 @@
+#include <unity.h>
+#include <JbdCodec.h>
+#include <DmsLink.h>
+using namespace dms;
+void test_official_requests(){uint8_t b[7];encodeJbdRead(3,b,7);const uint8_t e3[]={0xDD,0xA5,0x03,0,0xFF,0xFD,0x77};TEST_ASSERT_EQUAL_UINT8_ARRAY(e3,b,7);encodeJbdRead(4,b,7);TEST_ASSERT_EQUAL_HEX8(0xFC,b[5]);encodeJbdRead(5,b,7);TEST_ASSERT_EQUAL_HEX8(0xFB,b[5]);}
+static JbdFrame response(uint8_t cmd,const uint8_t*p,uint8_t n){JbdFrame f;f.bytes[0]=0xDD;f.bytes[1]=cmd;f.bytes[2]=0;f.bytes[3]=n;memcpy(f.bytes+4,p,n);uint16_t c=jbdChecksum(f.bytes+2,n+2);f.bytes[n+4]=c>>8;f.bytes[n+5]=c;f.bytes[n+6]=0x77;f.size=n+7;f.command=cmd;f.payloadLength=n;return f;}
+void test_basic_signed_and_date(){uint8_t p[25]{};p[0]=0x13;p[1]=0x88;p[2]=0xF8;p[3]=0x24;p[4]=0x01;p[5]=0xF4;p[6]=0x03;p[7]=0xE8;p[10]=0x20;p[11]=0x68;p[18]=0x21;p[19]=80;p[21]=24;p[22]=1;p[23]=0x0B;p[24]=0xA5;auto f=response(3,p,sizeof p);BasicInfo b;TEST_ASSERT_TRUE(decodeBasic(f,b));TEST_ASSERT_EQUAL_INT32(-20120,b.current_mA);TEST_ASSERT_EQUAL_UINT32(5000,b.remaining_mAh);TEST_ASSERT_EQUAL_UINT32(10000,b.nominal_mAh);TEST_ASSERT_EQUAL_UINT16(2016,b.year);TEST_ASSERT_EQUAL_UINT8(3,b.month);TEST_ASSERT_EQUAL_UINT8(8,b.day);TEST_ASSERT_EQUAL_INT16(250,b.temperatures_dC[0]);}
+void test_cells(){uint8_t p[48];for(int i=0;i<24;i++){uint16_t v=3300+i;p[2*i]=v>>8;p[2*i+1]=v;}auto f=response(4,p,48);CellInfo c;TEST_ASSERT_TRUE(decodeCells(f,c));TEST_ASSERT_EQUAL(24,c.count);TEST_ASSERT_EQUAL(1,c.minIndex);TEST_ASSERT_EQUAL(24,c.maxIndex);TEST_ASSERT_EQUAL(23,c.delta_mV);}
+void test_link_roundtrip_and_crc(){LinkFrame a;a.type=2;a.transactionId=0x1234;a.length=4;a.payload[0]=0;a.payload[1]=1;a.payload[2]=0;a.payload[3]=2;uint8_t w[512];size_t n=encodeLink(a,w,sizeof w);TEST_ASSERT_GREATER_THAN(0,n);LinkFrame b;TEST_ASSERT_TRUE(decodeLink(w,n,b));TEST_ASSERT_EQUAL_HEX16(0x1234,b.transactionId);TEST_ASSERT_EQUAL_UINT8_ARRAY(a.payload,b.payload,4);w[2]^=1;TEST_ASSERT_FALSE(decodeLink(w,n,b));}
+int main(int,char**){UNITY_BEGIN();RUN_TEST(test_official_requests);RUN_TEST(test_basic_signed_and_date);RUN_TEST(test_cells);RUN_TEST(test_link_roundtrip_and_crc);return UNITY_END();}
