@@ -14,5 +14,6 @@ JbdResult validateJbdRequest(const uint8_t* data,size_t len,JbdFrame* out=nullpt
 JbdResult validateJbdResponse(const uint8_t* data,size_t len,uint8_t expected,JbdFrame* out=nullptr);
 bool decodeBasic(const JbdFrame& frame,BasicInfo& out);
 bool decodeCells(const JbdFrame& frame,CellInfo& out);
-class JbdStreamParser { public: bool push(uint8_t b,JbdFrame& out,JbdResult& error); void reset(); private: uint8_t b_[JBD_MAX_FRAME]{}; uint16_t n_=0,expected_=0; };
+bool decodeHardware(const JbdFrame& frame,char* out,size_t capacity);
+class JbdStreamParser { public: bool push(uint8_t b,uint8_t expectedCommand,JbdFrame& out,JbdResult& error); bool push(uint8_t b,JbdFrame& out,JbdResult& error); void reset(); private: uint8_t b_[JBD_MAX_FRAME]{}; uint16_t n_=0,expected_=0; };
 }

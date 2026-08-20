@@ -8,6 +8,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
-      - run: pip install platformio
-      - run: pio run -d ${{ matrix.project }}
+      - run: pip install platformio==6.1.19
       - run: pio test -d ${{ matrix.project }} -e native
+      - run: pio run -d ${{ matrix.project }}
+      - run: python tools/test_tools.py

@@ -1,14 +1,40 @@
 #include "BmsSnapshot.h"
+namespace dms {SnapshotStore::SnapshotStore(){
 #ifdef ARDUINO
-#include <freertos/FreeRTOS.h>
-static portMUX_TYPE snapshotMux=portMUX_INITIALIZER_UNLOCKED;
+mutex_=xSemaphoreCreateMutex();
 #endif
-namespace dms { void SnapshotStore::publish(const BmsSnapshot&s){uint8_t n=active_^1;
+}SnapshotStore::~SnapshotStore(){
 #ifdef ARDUINO
-portENTER_CRITICAL(&snapshotMux);
+if(mutex_)vSemaphoreDelete(mutex_);
 #endif
-slots_[n]=s;active_=n;valid_=true;
+}void SnapshotStore::publish(const BmsSnapshot&s){
 #ifdef ARDUINO
-portEXIT_CRITICAL(&snapshotMux);
+xSemaphoreTake(mutex_,portMAX_DELAY);
+#else
+std::lock_guard<std::mutex> lock(mutex_);
 #endif
-} bool SnapshotStore::latest(BmsSnapshot&o)const{if(!valid_)return false;o=slots_[active_];return true;}bool SnapshotStore::bySequence(uint32_t q,BmsSnapshot&o)const{if(!valid_)return false;for(const auto&s:slots_)if(s.sequence==q){o=s;return true;}return false;} }
+uint8_t n=active_^1;slots_[n]=s;active_=n;valid_=true;
+#ifdef ARDUINO
+xSemaphoreGive(mutex_);
+#endif
+}bool SnapshotStore::latest(BmsSnapshot&o)const{
+#ifdef ARDUINO
+xSemaphoreTake(mutex_,portMAX_DELAY);
+#else
+std::lock_guard<std::mutex> lock(mutex_);
+#endif
+bool ok=valid_;if(ok)o=slots_[active_];
+#ifdef ARDUINO
+xSemaphoreGive(mutex_);
+#endif
+return ok;}bool SnapshotStore::bySequence(uint32_t q,BmsSnapshot&o)const{
+#ifdef ARDUINO
+xSemaphoreTake(mutex_,portMAX_DELAY);
+#else
+std::lock_guard<std::mutex> lock(mutex_);
+#endif
+bool ok=false;if(valid_)for(const auto&s:slots_)if(s.sequence==q){o=s;ok=true;break;}
+#ifdef ARDUINO
+xSemaphoreGive(mutex_);
+#endif
+return ok;}}

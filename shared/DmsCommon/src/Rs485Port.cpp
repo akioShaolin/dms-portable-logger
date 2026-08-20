@@ -11,6 +11,7 @@ bool Rs485Port::transmit(const uint8_t*data,size_t length,TickType_t timeout){
   esp_rom_gpio_connect_in_signal(GPIO_MATRIX_CONST_ONE_INPUT,U2RXD_IN_IDX,false);
   gpio_set_level(gpio_num_t(pins::RS485_DIR),1);
   const bool ok=serial_.write(data,length)==length && uart_wait_tx_done(UART_NUM_2,timeout)==ESP_OK;
+  size_t buffered=0;uart_get_buffered_data_len(UART_NUM_2,&buffered);stats_.discardedDuringTx+=buffered;if(ok)stats_.txFrames++;else stats_.txTimeouts++;
   uart_flush_input(UART_NUM_2);
   gpio_set_level(gpio_num_t(pins::RS485_DIR),0);
   esp_rom_gpio_connect_in_signal(pins::UART2_RX,U2RXD_IN_IDX,false);
