@@ -24,7 +24,7 @@ cd ../slavelogger && pio run
 pio test -e native
 ```
 
-Em Windows, toolchains antigos podem falhar com bibliotecas externas se o caminho contiver caracteres Unicode; use clone em caminho ASCII ou uma unidade mapeada. Testes `native` requerem GCC/G++ no PATH.
+Em Windows, toolchains antigos podem falhar com bibliotecas externas se o caminho contiver caracteres Unicode. O pré-build sincroniza automaticamente a fonte canônica de `shared/DmsCommon` para a pasta local e evita essa falha; não edite a cópia gerada em `masterlogger/lib` ou `slavelogger/lib`. Testes `native` requerem GCC/G++ no PATH.
 
 APs previstos: `DMS-MasterLogger-XXXX` (canal 1) e `DMS-SlaveLogger-XXXX` (canal 6), em `http://192.168.4.1/`. A senha inicial está em `AppConfig.h` e deve ser trocada antes do uso. A interface web e persistência completa permanecem em integração nesta versão de desenvolvimento.
 

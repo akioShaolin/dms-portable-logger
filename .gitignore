@@ -1,8 +1,9 @@
 .pio/
+masterlogger/lib/DmsCommon/
+slavelogger/lib/DmsCommon/
 .vscode/
 __pycache__/
 *.pyc
 secrets.h
 *.dmslog
 *.csv
-
