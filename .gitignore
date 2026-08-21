@@ -11,5 +11,4 @@ secrets.h
 !slavelogger/*.csv
 !tools/examples/*.csv
 !tools/examples/*.dmslog
-*.kicad*
-docs/wiring/wiring-backups/
+docs/wiring/

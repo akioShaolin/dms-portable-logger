@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-08-21
+
 ### Adicionado
 
 - firmwares MasterLogger e SlaveLogger para dois ED100/ESP32-WROOM-32E;
