@@ -18,3 +18,7 @@ Registradores são palavras de 16 bits em ordem big-endian conceitual. Inteiros 
 | 112–127 | hardware ASCII, dois caracteres por palavra |
 | 144–153 | contadores poll/timeout/checksum/link/log |
 | 254–255 | `SEQ_END` |
+
+Leitores devem obter o bloco completo e aceitar a amostra somente quando `SEQ_START == SEQ_END`. Se forem diferentes, o banco foi atualizado durante a leitura e deve ser consultado novamente. Campos reservados devem ser ignorados e mantidos disponíveis para evolução compatível.
+
+O mapa é uma visão de diagnóstico; não existe operação de escrita de registradores no gateway.

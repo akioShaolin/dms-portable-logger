@@ -9,3 +9,7 @@ GET_JBD_RESPONSE request: command u8, preferred sequence u32, max age u32. Respo
 O master conserva o último request/response para repetir transaction IDs duplicados sem repetir proxy.
 
 HELLO retorna link version u8, role u8, snapshot schema u16, boot ID u32 e flash bytes u32. PING retorna uptime u32, stack high-water u32 e logs descartados u32. GET_SNAPSHOT retorna o sample wire completo. READ_REGISTERS request contém address/count u16; response repete address/count e as palavras u16. Todos os inteiros do DMS-Link são little-endian.
+
+Flags indicam resposta stale, cache, proxy ou substituição da sequência solicitada. Status diferencia request inválido, snapshot ausente, stale, comando não suportado, write bloqueado, timeout, ocupado e erro interno. O Slave nunca deve converter falha de link em valores zerados aparentemente válidos.
+
+UART0 é dedicada ao protocolo binário e não deve receber texto de debug. Alterações incompatíveis exigem nova versão do link e testes de interoperabilidade Master/Slave.

@@ -7,3 +7,9 @@ __pycache__/
 secrets.h
 *.dmslog
 *.csv
+!masterlogger/*.csv
+!slavelogger/*.csv
+!tools/examples/*.csv
+!tools/examples/*.dmslog
+*.kicad*
+docs/wiring/wiring-backups/

@@ -3,6 +3,7 @@
 #include <LittleFS.h>
 #include <WiFi.h>
 #include <esp_task_wdt.h>
+#include <esp_partition.h>
 #include "AppConfig.h"
 #include <BinaryLogger.h>
 #include <BmsSnapshot.h>
@@ -13,6 +14,7 @@
 #include <RegisterBank.h>
 #include <Rs485Port.h>
 #include <RtcClock.h>
+#include <StorageConfig.h>
 #include <WebPortal.h>
 using namespace dms;
 
@@ -23,6 +25,7 @@ static Rs485Port bus; static SnapshotStore snapshots; static RegisterBank regist
 static RtcClock rtc; static LedController leds; static BinaryLogger logger; static WebPortal web;
 static QueueHandle_t proxyQueue,logQueue; static uint32_t bootId,sequence,droppedLogs,checksumErrors,invalidFrames;
 static JbdFrame hardwareFrame; static char hardware[32]{},deviceId[13]{}; static uint32_t hardwareMs;
+static RawFramePolicy rawPolicies[3];
 
 static void enqueue(LogMessage&m){if(xQueueSend(logQueue,&m,0)!=pdTRUE)droppedLogs++;}
 static bool transact(const uint8_t*q,size_t n,uint8_t cmd,JbdFrame&frame,uint32_t&latency){
@@ -34,6 +37,7 @@ static bool transact(const uint8_t*q,size_t n,uint8_t cmd,JbdFrame&frame,uint32_
 static bool command(uint8_t cmd,JbdFrame&f,uint32_t&latency){uint8_t q[7];size_t n=encodeJbdRead(cmd,q,sizeof q);return transact(q,n,cmd,f,latency);}
 static void logPollError(uint8_t stage){LogMessage m;m.type=LogType::POLL_ERROR;uint8_t*p=m.data;put32(p,millis());*p++=stage;put32(p,sequence);m.length=p-m.data;enqueue(m);}
 static void logProxy(const ProxyJob&job){LogMessage m;m.type=LogType::RAW_JBD_FRAME;uint8_t*p=m.data;put32(p,millis());*p++=job.request.command;put16(p,job.request.size);memcpy(p,job.request.bytes,job.request.size);p+=job.request.size;put16(p,job.response.size);memcpy(p,job.response.bytes,job.response.size);p+=job.response.size;m.length=p-m.data;enqueue(m);}
+static void logRaw(uint8_t cmd,const JbdFrame&frame,bool force=false){uint8_t index=cmd-3;if(index>2||!shouldStoreRaw(rawPolicies[index],frame.bytes,frame.size,millis(),force))return;LogMessage m;m.type=LogType::RAW_JBD_FRAME;uint8_t*p=m.data;put32(p,millis());*p++=cmd;uint8_t request[7];size_t requestSize=encodeJbdRead(cmd,request,sizeof request);put16(p,requestSize);memcpy(p,request,requestSize);p+=requestSize;put16(p,frame.size);memcpy(p,frame.bytes,frame.size);p+=frame.size;m.length=p-m.data;enqueue(m);}
 
 static void bmsTask(void*){
   esp_task_wdt_add(nullptr); uint32_t deadline=millis(),nextHardware=0,timeouts=0,offlineFailures=0;
@@ -42,7 +46,7 @@ static void bmsTask(void*){
     if(xQueueReceive(proxyQueue,&job,0)==pdTRUE){uint32_t began=millis();job->result=transact(job->request.bytes,job->request.size,job->request.command,job->response,job->latency)?LinkStatus::OK:LinkStatus::BMS_TIMEOUT;job->latency=millis()-began;logProxy(*job);xTaskNotifyGive(job->waiter);continue;}
     if(int32_t(millis()-deadline)<0){vTaskDelay(1);continue;}deadline+=config::POLL_MS;
     BmsSnapshot s;uint32_t began=micros(),latency=0;uint8_t failedStage=3;
-    bool ok=command(3,s.raw03,latency);if(ok){failedStage=4;ok=command(4,s.raw04,latency);}if(ok)ok=decodeBasic(s.raw03,s.basic)&&decodeCells(s.raw04,s.cells);
+    bool ok=command(3,s.raw03,latency);if(ok){logRaw(3,s.raw03);failedStage=4;ok=command(4,s.raw04,latency);if(ok)logRaw(4,s.raw04);}if(ok)ok=decodeBasic(s.raw03,s.basic)&&decodeCells(s.raw04,s.cells);
     if(ok){
       s.bootId=bootId;s.sequence=++sequence;s.captureMonotonicMs=millis();s.quality=BASIC_VALID|CELLS_VALID|BMS_ONLINE;s.timeouts=timeouts;s.checksumErrors=checksumErrors;s.discardedFrames=invalidFrames;s.droppedLogs=droppedLogs;
       if(rtc.read(s.timestampUtcMs))s.quality|=RTC_VALID;else s.quality|=CLOCK_UNSET;
@@ -51,7 +55,7 @@ static void bmsTask(void*){
       s.pollDurationUs=micros()-began;s.polls=sequence;snapshots.publish(s);registers.update(s,0,0);
       LogMessage m;m.type=LogType::MASTER_SAMPLE;m.snapshot=s;enqueue(m);offlineFailures=0;leds.setRs485(s.basic.protection?LedPattern::RED_DOUBLE:LedPattern::PULSE_GREEN);
     }else{timeouts++;offlineFailures++;logPollError(failedStage);leds.setRs485(offlineFailures>=3?LedPattern::RED_SLOW:LedPattern::PULSE_RED);}
-    if(!hardwareFrame.size||int32_t(millis()-nextHardware)>=0){JbdFrame h;if(command(5,h,latency)&&decodeHardware(h,hardware,sizeof hardware)){hardwareFrame=h;hardwareMs=millis();nextHardware=millis()+3600000;}else nextHardware=millis()+5000;}
+    if(!hardwareFrame.size||int32_t(millis()-nextHardware)>=0){JbdFrame h;if(command(5,h,latency)&&decodeHardware(h,hardware,sizeof hardware)){hardwareFrame=h;hardwareMs=millis();logRaw(5,h);nextHardware=millis()+3600000;}else nextHardware=millis()+5000;}
   }
 }
 
@@ -85,8 +89,8 @@ static void linkServerTask(void*){
 static void loggerTask(void*){LogMessage m;uint32_t lastFlush=millis();for(;;){if(xQueueReceive(logQueue,&m,pdMS_TO_TICKS(100))==pdTRUE){if(m.type==LogType::MASTER_SAMPLE){uint8_t p[224];size_t n=serializeSample(m.snapshot,0,p,sizeof p);logger.append(m.type,p,n);}else logger.append(m.type,m.data,m.length);}if(millis()-lastFlush>=5000){logger.flush();lastFlush=millis();}}}
 static void webTask(void*){bool ok=web.begin("Master",config::WIFI_CHANNEL,config::AP_PASSWORD,snapshots,logger,rtc);leds.setWifi(ok?LedPattern::GREEN:LedPattern::RED);for(;;){web.handle();vTaskDelay(2);}}
 void setup(){
-  bootId=esp_random();snprintf(deviceId,sizeof deviceId,"%012llX",ESP.getEfuseMac());Serial.begin(config::LINK_BAUD,SERIAL_8N1,3,1);bus.begin(config::JBD_BAUD);leds.begin();rtc.begin();uint64_t startEpoch=0;rtc.read(startEpoch);bool fs=LittleFS.begin(false);
-  if(fs){logger.begin(LittleFS,0,bootId,esp_random(),deviceId,DMS_FIRMWARE_VERSION,DMS_GIT_SHA,uint8_t(rtc.quality()),startEpoch);uint8_t event[9],*p=event;put32(p,ESP.getFlashChipSize());put32(p,4194304);*p++=uint8_t(esp_reset_reason());logger.append(LogType::SYSTEM_EVENT,event,p-event);}leds.setServer(fs?LedPattern::GREEN:LedPattern::RED);proxyQueue=xQueueCreate(4,sizeof(ProxyJob*));logQueue=xQueueCreate(8,sizeof(LogMessage));
+  bootId=esp_random();snprintf(deviceId,sizeof deviceId,"%012llX",ESP.getEfuseMac());Serial.begin(config::LINK_BAUD,SERIAL_8N1,3,1);bus.begin(config::JBD_BAUD);leds.begin();rtc.begin();uint64_t startEpoch=0;rtc.read(startEpoch);bool partition=esp_partition_find_first(ESP_PARTITION_TYPE_DATA,ESP_PARTITION_SUBTYPE_DATA_SPIFFS,LITTLEFS_PARTITION_LABEL)!=nullptr;bool fs=partition&&LittleFS.begin(false,LITTLEFS_BASE_PATH,LITTLEFS_MAX_OPEN_FILES,LITTLEFS_PARTITION_LABEL);logger.setStorageState(partition,fs,partition?StorageError::MOUNT_FAILED:StorageError::PARTITION_NOT_FOUND);bool logOk=fs&&logger.begin(LittleFS,0,bootId,esp_random(),deviceId,DMS_FIRMWARE_VERSION,DMS_GIT_SHA,uint8_t(rtc.quality()),startEpoch);
+  if(logOk){uint8_t event[9],*p=event;put32(p,ESP.getFlashChipSize());put32(p,4194304);*p++=uint8_t(esp_reset_reason());logOk=logger.append(LogType::SYSTEM_EVENT,event,p-event)&&logger.flush();}leds.setServer(logOk?LedPattern::GREEN:LedPattern::RED);proxyQueue=xQueueCreate(4,sizeof(ProxyJob*));logQueue=xQueueCreate(8,sizeof(LogMessage));
   xTaskCreatePinnedToCore(bmsTask,"bms",6144,nullptr,5,nullptr,1);xTaskCreatePinnedToCore(linkServerTask,"link",6144,nullptr,5,nullptr,1);xTaskCreatePinnedToCore(loggerTask,"logger",4096,nullptr,1,nullptr,0);xTaskCreatePinnedToCore(webTask,"web",6144,nullptr,2,nullptr,0);
 }
 void loop(){leds.setWifi(WiFi.softAPgetStationNum()?LedPattern::AMBER:LedPattern::GREEN);const auto&s=logger.stats();if(!s.mounted||!s.running)leds.setServer(LedPattern::RED);else if(s.total&&s.used*100/s.total>=95)leds.setServer(LedPattern::RED_SLOW);else if(s.total&&s.used*100/s.total>=85)leds.setServer(LedPattern::AMBER);else leds.setServer(LedPattern::GREEN);leds.tick(millis());vTaskDelay(10);}
