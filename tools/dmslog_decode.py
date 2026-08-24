@@ -11,7 +11,7 @@ def read_header(fp):
  h=fp.read(HEADER)
  if len(h)!=HEADER or h[:7]!=MAGIC or h[7]!=2:raise ValueError("cabeçalho DMSLOG2 inválido")
  if zlib.crc32(h[:60])&0xffffffff!=struct.unpack_from("<I",h,60)[0]:raise ValueError("CRC do cabeçalho inválido")
- return {"version":h[7],"role":h[8],"clock_quality":h[9],"schema":struct.unpack_from("<H",h,10)[0],"boot_id":struct.unpack_from("<I",h,12)[0],"session_id":struct.unpack_from("<I",h,16)[0],"start_epoch_ms":struct.unpack_from("<Q",h,20)[0],"device":h[28:40].split(b"\0",1)[0].decode("ascii","replace"),"firmware":h[40:48].split(b"\0",1)[0].decode("ascii","replace"),"git_sha":h[48:60].split(b"\0",1)[0].decode("ascii","replace")}
+ return {"version":h[7],"role":h[8],"clock_quality":h[9]&0x7f,"build_dirty":bool(h[9]&0x80),"schema":struct.unpack_from("<H",h,10)[0],"boot_id":struct.unpack_from("<I",h,12)[0],"session_id":struct.unpack_from("<I",h,16)[0],"start_epoch_ms":struct.unpack_from("<Q",h,20)[0],"device":h[28:40].split(b"\0",1)[0].decode("ascii","replace"),"firmware":h[40:48].split(b"\0",1)[0].decode("ascii","replace"),"git_sha":h[48:60].split(b"\0",1)[0].decode("ascii","replace")}
 def records(fp):
  while True:
   pos=fp.tell();h=fp.read(8)

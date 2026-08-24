@@ -27,6 +27,10 @@ class ToolsTest(unittest.TestCase):
   with tempfile.TemporaryFile() as f:
    f.write(record+tail);f.seek(0)
    with self.assertRaisesRegex(ValueError,"CRC inválido"):list(dec.records(f))
+ def test_header_dirty_flag_is_backward_compatible(self):
+  h=bytearray(64);h[:7]=b"DMSLOG2";h[7]=2;h[9]=0x83;struct.pack_into("<I",h,60,zlib.crc32(h[:60])&0xffffffff)
+  with tempfile.TemporaryFile() as f:
+   f.write(h);f.seek(0);meta=dec.read_header(f);self.assertEqual(3,meta["clock_quality"]);self.assertTrue(meta["build_dirty"])
  def test_decoder_csv(self):
   h=bytearray(64);h[:7]=b"DMSLOG2";h[7]=2;struct.pack_into("<HII",h,10,1,1,2);struct.pack_into("<I",h,60,zlib.crc32(h[:60])&0xffffffff);p=emu.sample();rh=struct.pack("<HBBI",0xD25A,1,1,len(p));record=rh+p+struct.pack("<I",zlib.crc32(rh+p)&0xffffffff)
   with tempfile.TemporaryDirectory() as folder:

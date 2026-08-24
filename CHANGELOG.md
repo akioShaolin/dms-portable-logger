@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+### Corrigido
+
+- normalização única de nomes LittleFS com e sem barra inicial para listar, baixar e excluir logs;
+- exclusão com contagens reais, preservação do ativo, falha parcial e atualização imediata do espaço;
+- rotação transacional sem reentrada do mutex, com recuperação do arquivo anterior e remoção de placeholder inválido;
+- cache BMS stale/inválido após 2,5/5 s sem sequência artificial;
+- flag compatível de build sujo no DMSLOG2.
+
+### Validado
+
+- análise pós-teste de percurso real de aproximadamente 60 km até esgotamento da bateria;
+- recuperação externa do LittleFS e correlação entre rotação, arquivo vazio e reinicializações.
+
 ## [0.1.0] - 2026-08-21
 
 ### Adicionado

@@ -35,7 +35,7 @@ static bool transact(const uint8_t*q,size_t n,uint8_t cmd,JbdFrame&frame,uint32_
   return false;
 }
 static bool command(uint8_t cmd,JbdFrame&f,uint32_t&latency){uint8_t q[7];size_t n=encodeJbdRead(cmd,q,sizeof q);return transact(q,n,cmd,f,latency);}
-static void logPollError(uint8_t stage){LogMessage m;m.type=LogType::POLL_ERROR;uint8_t*p=m.data;put32(p,millis());*p++=stage;put32(p,sequence);m.length=p-m.data;enqueue(m);}
+static void logPollError(uint8_t stage){BmsSnapshot cached;if(snapshots.latest(cached)){cached.timeouts++;cached.quality=qualityForAge(cached.quality,millis()-cached.captureMonotonicMs);snapshots.publish(cached);}LogMessage m;m.type=LogType::POLL_ERROR;uint8_t*p=m.data;put32(p,millis());*p++=stage;put32(p,sequence);m.length=p-m.data;enqueue(m);}
 static void logProxy(const ProxyJob&job){LogMessage m;m.type=LogType::RAW_JBD_FRAME;uint8_t*p=m.data;put32(p,millis());*p++=job.request.command;put16(p,job.request.size);memcpy(p,job.request.bytes,job.request.size);p+=job.request.size;put16(p,job.response.size);memcpy(p,job.response.bytes,job.response.size);p+=job.response.size;m.length=p-m.data;enqueue(m);}
 static void logRaw(uint8_t cmd,const JbdFrame&frame,bool force=false){uint8_t index=cmd-3;if(index>2||!shouldStoreRaw(rawPolicies[index],frame.bytes,frame.size,millis(),force))return;LogMessage m;m.type=LogType::RAW_JBD_FRAME;uint8_t*p=m.data;put32(p,millis());*p++=cmd;uint8_t request[7];size_t requestSize=encodeJbdRead(cmd,request,sizeof request);put16(p,requestSize);memcpy(p,request,requestSize);p+=requestSize;put16(p,frame.size);memcpy(p,frame.bytes,frame.size);p+=frame.size;m.length=p-m.data;enqueue(m);}
 

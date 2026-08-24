@@ -52,13 +52,18 @@ inline bool safeLogBasename(const char *name) {
   size_t length = 0;
   for (const unsigned char *p = reinterpret_cast<const unsigned char *>(name); *p; ++p, ++length)
     if (*p < 0x20 || *p == 0x7f || *p == '/' || *p == '\\' || *p == '"') return false;
-  if (length < 8) return false;
+  if (length < 15 || (name[0] != 'M' && name[0] != 'S') || name[1] != '-') return false;
   const char suffix[] = ".dmslog";
   for (size_t i = 0; i < sizeof(suffix); ++i)
     if (name[length - (sizeof(suffix) - 1) + i] != suffix[i]) return false;
-  for (size_t i = 0; i + 1 < length; ++i) if (name[i] == '.' && name[i + 1] == '.') return false;
-  return true;
+  size_t hyphens=0;for(size_t i=0;i<length-7;i++){char c=name[i];if(c=='-')hyphens++;else if(!((c>='a'&&c<='z')||(c>='A'&&c<='Z')||(c>='0'&&c<='9')))return false;}
+  if(hyphens<2)return false;size_t digits=length-10;if(name[digits-1]!='-')return false;
+  return name[digits]>='0'&&name[digits]<='9'&&name[digits+1]>='0'&&name[digits+1]<='9'&&name[digits+2]>='0'&&name[digits+2]<='9';
 }
+
+inline bool normalizeLogName(const char*input,char*basename,size_t basenameSize,char*path,size_t pathSize){if(!input||!basename||!path)return false;const char*p=input;if(*p=='/')p++;if(!safeLogBasename(p))return false;size_t n=0;while(p[n])n++;if(n+1>basenameSize||n+2>pathSize)return false;for(size_t i=0;i<=n;i++)basename[i]=p[i];path[0]='/';for(size_t i=0;i<=n;i++)path[i+1]=p[i];return true;}
+struct DeleteSummary{uint32_t candidates=0,removed=0,skippedActive=0,rejected=0,failed=0;};
+inline bool deletionSucceeded(const DeleteSummary&s){return s.failed==0&&!(s.candidates&&s.removed==0);}
 
 struct RawFramePolicy {
   uint8_t bytes[128]{};

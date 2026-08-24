@@ -10,6 +10,8 @@
 namespace dms {
 constexpr uint16_t SNAPSHOT_SCHEMA=1;
 enum Quality:uint32_t{BASIC_VALID=1,CELLS_VALID=2,HARDWARE_VALID=4,RTC_VALID=8,BMS_ONLINE=16,STALE=32,PROTECTION_ACTIVE=64,UNEXPECTED_CELL_COUNT=128,EXTRA_PRESERVED=256,LINK_ONLINE=512,CLOCK_UNSET=1024};
+constexpr uint32_t BMS_STALE_AFTER_MS=2500,BMS_INVALID_AFTER_MS=5000;
+inline uint32_t qualityForAge(uint32_t quality,uint32_t age){if(age>BMS_STALE_AFTER_MS){quality&=~BMS_ONLINE;quality|=STALE;}if(age>BMS_INVALID_AFTER_MS)quality&=~(BASIC_VALID|CELLS_VALID);return quality;}
 struct BmsSnapshot{
   uint16_t schema=SNAPSHOT_SCHEMA;uint32_t bootId=0,sequence=0;uint64_t timestampUtcMs=0;uint32_t captureMonotonicMs=0,quality=0,pollDurationUs=0;
   BasicInfo basic{};CellInfo cells{};char hardware[32]{};JbdFrame raw03{},raw04{},raw05{};

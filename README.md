@@ -30,6 +30,10 @@ Primeira validação física estacionária concluída em 2026-08-21, com a motoc
 
 Os builds e testes automatizados estão aprovados. Testes em movimento, ensaios prolongados, descarga até SOC baixo, autonomia do pack portátil e comportamento até memória cheia continuam pendentes. Os números medidos pertencem à bateria e à sessão do ensaio, não são especificações universais. Consulte os [resultados de validação](docs/validation-results.md), os [testes](docs/testing.md) e o [checklist estacionário](docs/stationary-motorcycle-test.md).
 
+## Teste real e correções pós-teste
+
+Foi realizado um percurso real de aproximadamente 60 km até o esgotamento da bateria. O gateway entregou SOC ao painel e os logs foram recuperados. A análise agregada revelou reinicializações próximas da rotação de 512 KiB, listagem/exclusão web inconsistentes e ausência temporária do BMS no fim. As correções estão em `[Unreleased]` e ainda exigem revalidação em bancada; isso não constitui certificação nem valida resistência ambiental ou operação até memória cheia.
+
 ## Como funciona
 
 ```text
@@ -133,11 +137,11 @@ Resultados da última validação local:
 
 | Alvo | Testes | RAM | Flash |
 | --- | ---: | ---: | ---: |
-| Master native | 14/14 | — | — |
+| Master native | 15/15 | — | — |
 | Slave native | 3/3 | — | — |
-| Ferramentas Python | 8/8 | — | — |
-| Master ESP32 | SUCCESS | 48.352 B (14,8%) | 881.385 B (56,0%) |
-| Slave ESP32 | SUCCESS | 47.704 B (14,6%) | 878.801 B (55,9%) |
+| Ferramentas Python | 9/9 | — | — |
+| Master ESP32 | SUCCESS | 48.368 B (14,8%) | 884.157 B (56,2%) |
+| Slave ESP32 | SUCCESS | 47.720 B (14,6%) | 881.305 B (56,0%) |
 
 ## Gravar os firmwares
 
@@ -289,7 +293,7 @@ O decoder valida cabeçalho e CRC, tolera somente o último registro truncado e 
 
 ## Falhas e recuperação
 
-- BMS offline: conserva o último snapshot válido e registra `POLL_ERROR`.
+- BMS offline: mantém a última amostra somente como cache, registra `POLL_ERROR`, aumenta a idade, marca stale após 2,5 s e invalida dados básicos/células após 5 s, sem avançar a sequência.
 - Master offline: Slave usa cache somente dentro da janela máxima de 5 s.
 - RTC inválido: monotonic/age continuam válidos e o relógio é marcado como não configurado.
 - LittleFS indisponível: RS485 e DMS-Link continuam funcionando; logging permanece parado e diagnosticável.
@@ -378,6 +382,7 @@ Estes comandos não são executados automaticamente por este projeto.
 - [DMS-Link](docs/dms-link-v1.md)
 - [Mapa de registradores](docs/register-map-v1.md)
 - [Formato de log](docs/log-format-v2.md)
+- [Recuperação do LittleFS](docs/littlefs-recovery.md)
 - [Interface web](docs/web-interface.md)
 - [LEDs](docs/leds.md)
 - [Testes](docs/testing.md)

@@ -14,7 +14,7 @@ Telemetria é atualizada a cada segundo e armazenamento/listagem a cada quatro s
 - `POST /api/session/rotate`: retorna arquivo anterior e novo ativo.
 - `POST /api/time`: epoch em milissegundos.
 - `DELETE /api/logs/{nome}`: somente inativo.
-- `POST /api/logs/erase-all`, corpo `ERASE-ALL`: apaga apenas inativos.
+- `POST /api/logs/erase-all`, corpo `ERASE-ALL`: apaga apenas inativos e retorna `candidates`, `removed`, `skipped_active`, `rejected` e `failed`; falha parcial usa HTTP 500.
 - `POST /api/storage/initialize`, corpo `INITIALIZE-LITTLEFS`: somente desmontado/logger parado; formata explicitamente e reinicia.
 
 Nomes com traversal, barras, controles, aspas ou extensão incorreta são rejeitados. Transferências rodam incrementalmente no Core 0; protocolos permanecem no Core 1. **Finalizar e baixar** rotaciona e baixa o anterior fechado. Atualizações pausam durante confirmações destrutivas.

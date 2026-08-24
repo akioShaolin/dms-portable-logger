@@ -2,11 +2,12 @@
 
 ## Versões suportadas
 
-Ainda não existe release ou tag estável.
+Existe a pre-release experimental `v0.1.0`; ela não é estável nem certificada.
 
 | Versão | Suporte |
 | --- | --- |
 | `main` / desenvolvimento atual | Sim |
+| `v0.1.0` (pre-release) | Atualizar para `main` |
 | versões e commits anteriores | Não |
 
 ## Como relatar uma vulnerabilidade

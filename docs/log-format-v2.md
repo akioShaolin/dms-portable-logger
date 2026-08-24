@@ -13,3 +13,9 @@ Rotação: 512 KiB. Reserva: 64 KiB, sem apagar antigos. CSV web e `tools/dmslog
 O CRC do cabeçalho cobre os primeiros 60 bytes. O CRC de cada registro cobre sync, tipo, versão, comprimento e payload. Decoders devem ignorar tipos desconhecidos somente depois de preservar `payload_hex`; não devem tentar ressincronizar silenciosamente após corrupção intermediária.
 
 Mudanças incompatíveis exigem nova versão do formato. A versão do firmware não substitui a versão DMSLOG: ambas devem aparecer nas notas de release.
+
+## Proveniência e rotação transacional
+
+O bit 7 do byte de `clock quality` indica `build_dirty`; os bits 0–6 continuam sendo a qualidade do relógio. Arquivos antigos têm esse bit zero e permanecem válidos. O SHA continua com 12 bytes, sem sufixo truncável.
+
+Após flush e fechamento na rotação de 512 KiB, o candidato recebe e valida o cabeçalho antes de virar ativo. Em falha, o placeholder incompleto é removido e o arquivo anterior é reaberto; tentativas e falhas são contabilizadas.

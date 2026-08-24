@@ -7,9 +7,9 @@ Este documento diferencia testes automatizados, evidências físicas estacionár
 Executados localmente em Windows, inclusive no caminho Unicode do projeto:
 
 - builds PlatformIO de MasterLogger e SlaveLogger aprovados;
-- 14/14 testes native do MasterLogger aprovados;
+- 15/15 testes native do MasterLogger aprovados;
 - 3/3 testes native do SlaveLogger aprovados;
-- 8/8 testes Python aprovados;
+- 9/9 testes Python aprovados;
 - codecs JBD, COBS/CRC16, snapshot, RTC, DMSLOG2/CRC32, rotação, reserva, rótulo LittleFS, path traversal, truncamento final e corrupção intermediária cobertos.
 
 Os comandos, uso de RAM/flash e casos cobertos estão detalhados em [testing.md](testing.md).
@@ -50,6 +50,12 @@ O decoder local confirmou nos arquivos analisados:
 - Houve sincronização do RTC pelo navegador durante o arquivo Master, causando avanço no timestamp de parede; o tempo monotônico permaneceu adequado para duração e ordenação.
 - Tensão, corrente, SOC, temperaturas e células pertencem à bateria específica do ensaio e não são especificações universais do projeto.
 - O timeout observado demonstra recuperação naquele cenário, não cobertura de todas as falhas possíveis.
+
+## Teste real e análise pós-teste
+
+Foi realizado um percurso real de aproximadamente 60 km até o esgotamento da bateria. A análise agregada dos logs recuperados confirmou operação durante o percurso e ausência temporária do BMS no final. Também mostrou forte correlação entre arquivos no limite de rotação, reinicializações por pânico e um arquivo seguinte vazio. A correlação orientou a refatoração, mas não identifica sozinha a linha exata do pânico; backtrace e rotações repetidas em bancada continuam necessários.
+
+A listagem vazia e a exclusão inoperante foram explicadas pela divergência entre basename e caminho absoluto retornado pelo LittleFS. Nenhum identificador, valor elétrico ou registro individual dos arquivos de campo é reproduzido aqui.
 
 ## Ainda não validado
 
